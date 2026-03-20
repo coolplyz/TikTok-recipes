@@ -16,9 +16,17 @@ export default async function handler(req, res) {
     }
 
     try {
+
+        // 1. URL auflösen falls verkürzt (vm.tiktok.com)
+        let resolvedUrl = url;
+        if (url.includes("vm.tiktok.com") || url.includes("vt.tiktok.com")) {
+            const response = await fetch(url, { redirect: "follow" });
+            resolvedUrl = response.url;
+        }
+
         // 1. TikTok Caption holen
         const oembedRes = await fetch(
-            `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`
+            `https://www.tiktok.com/oembed?url=${encodeURIComponent(resolvedUrl)}`
         );
         const oembed = await oembedRes.json();
         const caption = oembed.title || "";
@@ -36,7 +44,7 @@ export default async function handler(req, res) {
             filter: {
                 property: "TikTok URL",
                 url: {
-                    equals: url,
+                    equals: resolvedUrl,
                 },
             },
         });
@@ -89,7 +97,7 @@ export default async function handler(req, res) {
                         multi_select: rezept.zutaten_tags.map((tag) => ({ name: tag })),
                     },
                     "TikTok URL": {
-                        url: url,
+                        url: resolvedUrl,
                     },
                 },
                 children: [
