@@ -21,69 +21,88 @@ export default async function handler(req, res) {
     );
     const oembed = await oembedRes.json();
     const caption = oembed.title || "";
-    const author = oembed.author_name || "";
 
     if (!caption) {
       return res.status(400).json({ error: "Keine Caption gefunden" });
     }
 
-    // 2. Claude extrahiert Rezept
+    // 2. Claude extrahiert Rezepte
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
+      max_tokens: 2048,
       messages: [
         {
           role: "user",
-          content: `Analysiere diese TikTok Caption und extrahiere das Rezept.
-Antworte NUR als JSON, kein Text davor oder danach.
+          content: `Du bist ein Rezept-Extraktor. Analysiere die folgende TikTok Caption.
+
+Regeln:
+- Erkennt Rezepte auf Deutsch UND Englisch
+- Enthält die Caption ein Rezept, extrahiere dieses eine
+- Enthält die Caption mehrere Rezepte, extrahiere ALLE als separate Einträge
+- Ist kein Rezeptname erkennbar, erstelle einen passenden kurzen Namen
+- Fehlen Zutaten, schreibe "Keine Zutaten angegeben"
+- Fehlen Zubereitungsschritte, schreibe "Keine Schritte angegeben"
+- Kategorisiere in NUR eine dieser Kategorien: Pasta, Reis, Kartoffeln, Snack, Suppe, Sonstiges
+- Antworte NUR als reines JSON Array, keine Backticks, kein Markdown, keine Erklärungen
 
 Caption: "${caption}"
 
-JSON Format:
-{
-  "name": "Rezeptname",
-  "kategorie": "eine aus: Pasta, Reis, Kartoffeln, Suppe, Auflauf, Snack, Salat, Fleisch, Fisch, Dessert, Sonstiges",
-  "hauptzutat": "wichtigste Zutat",
-  "zutaten": "Zutat 1, Zutat 2, Zutat 3...",
-  "zubereitung": "Schritt 1. Schritt 2. Schritt 3..."
-}`,
+Antworte mit einem JSON Array, auch wenn es nur ein Rezept ist:
+[
+  {
+    "name": "Kurzer prägnanter Rezeptname",
+    "kategorie": "Pasta | Reis | Kartoffeln | Snack | Suppe | Sonstiges",
+    "zutaten": "Zutat 1, Zutat 2, Zutat 3...",
+    "zubereitung": "Schritt 1. Schritt 2. Schritt 3."
+  }
+]`,
         },
       ],
     });
 
+    // 3. Antwort parsen
     const raw = message.content[0].text.replace(/```json|```/g, "").trim();
-    const rezept = JSON.parse(raw);
+    const rezepte = JSON.parse(raw);
 
-    // 3. In Notion speichern
-    await notion.pages.create({
-      parent: { database_id: process.env.NOTION_DATABASE_ID },
-      properties: {
-        Name: {
-          title: [{ text: { content: rezept.name } }],
-        },
-        Kategorie: {
-          select: { name: rezept.kategorie },
-        },
-        Hauptzutat: {
-          select: { name: rezept.hauptzutat },
-        },
-        Zutaten: {
-          rich_text: [{ text: { content: rezept.zutaten } }],
-        },
-        Zubereitung: {
-          rich_text: [{ text: { content: rezept.zubereitung } }],
-        },
-        "TikTok URL": {
-          url: url,
-        },
-      },
-    });
+    if (!Array.isArray(rezepte) || rezepte.length === 0) {
+      return res.status(400).json({ error: "Keine Rezepte gefunden" });
+    }
 
+    // 4. Für jedes Rezept eine Notion-Seite erstellen
+    const gespeichert = [];
+
+    for (const rezept of rezepte) {
+      await notion.pages.create({
+        parent: { database_id: process.env.NOTION_DATABASE_ID },
+        properties: {
+          Name: {
+            title: [{ text: { content: rezept.name } }],
+          },
+          Kategorie: {
+            select: { name: rezept.kategorie },
+          },
+          Zutaten: {
+            rich_text: [{ text: { content: rezept.zutaten } }],
+          },
+          Zubereitung: {
+            rich_text: [{ text: { content: rezept.zubereitung } }],
+          },
+          "TikTok URL": {
+            url: url,
+          },
+        },
+      });
+
+      gespeichert.push(rezept.name);
+    }
+
+    // 5. Bestätigung zurückschicken
     return res.status(200).json({
       success: true,
-      rezept: rezept.name,
-      kategorie: rezept.kategorie,
+      anzahl: gespeichert.length,
+      rezepte: gespeichert,
     });
+
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: error.message });
