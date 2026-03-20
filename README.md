@@ -1,222 +1,233 @@
-# TikTok Recipes – Dokumentation
+# TikTok Recipes
 
-Dieses Tool ermöglicht es, TikTok Rezepte direkt über den iOS Teilen-Button in einer Notion Datenbank zu speichern. Claude (Anthropic API) analysiert die Caption automatisch und extrahiert Rezeptname, Kategorie, Zutaten und Zubereitung.
+This tool allows you to save TikTok recipes directly to a Notion database via the iOS Share Sheet. Claude (Anthropic API) automatically analyzes the caption and extracts the recipe name, category, ingredients, and preparation steps.
 
 ---
 
-## Architektur
+## Architecture
 
 ```
-TikTok Teilen-Button
+TikTok Share Button
 → iOS Shortcut
 → Vercel Serverless Function (api/save-recipe.js)
-→ TikTok oEmbed API (Caption holen)
-→ Anthropic API / Claude Haiku (Rezept extrahieren)
-→ Notion API (Seite erstellen)
-→ Bestätigung ans iPhone
+→ TikTok oEmbed API (fetch caption)
+→ Anthropic API / Claude Haiku (extract recipe)
+→ Notion API (create page)
+→ Confirmation to iPhone
 ```
 
 ---
 
-## 1. Voraussetzungen
+## 1. Prerequisites
 
-- GitHub Account
-- Vercel Account (kostenlos, mit GitHub verbinden)
-- Notion Account
-- Anthropic Account (console.anthropic.com)
-- iPhone mit Shortcuts App
+- GitHub account
+- Vercel account (free, connect with GitHub)
+- Notion account
+- Anthropic account (console.anthropic.com)
+- iPhone with Shortcuts app
 
 ---
 
 ## 2. Notion Setup
 
-### 2a. Datenbank erstellen
+### 2a. Create database
 
-1. Neue Seite in Notion erstellen
-2. Typ **„Table"** auswählen
-3. Folgende Spalten anlegen:
+1. Create a new page in Notion
+2. Select type **"Table"**
+3. Add the following columns:
 
-| Spaltenname | Typ |
+| Column name | Type |
 |---|---|
 | Name | Title |
-| Kategorie | Select |
-| Zutaten | Multi-select |
+| Category | Select |
+| Ingredients | Multi-select |
 | TikTok URL | URL |
-| Hinzugefügt am | Created time |
+| Added on | Created time |
 
-### 2b. Notion Integration erstellen
+> **Note on categories:** The default categories in this project are `Pasta`, `Rice`, `Potatoes`, `Soup`, `Snack`, and `Other`. These can be freely customized — just make sure the category values in your Notion Select column match exactly what the prompt in `api/prompt.js` outputs. If you change the categories, update both places.
 
-1. Gehe zu [notion.so/my-integrations](https://notion.so/my-integrations)
-2. Klicke auf **„+ New integration"**
-3. Name: `TikTok Rezepte`
-4. Workspace auswählen → **„Submit"**
-5. **Integration Token kopieren** (`secret_...`)
+### 2b. Create Notion integration
 
-### 2c. Datenbank mit Integration verbinden
+1. Go to [notion.so/my-integrations](https://notion.so/my-integrations)
+2. Click **"+ New integration"**
+3. Name: `TikTok Recipes`
+4. Select workspace → **"Submit"**
+5. **Copy the integration token** (`secret_...`)
 
-1. Datenbank als **Full Page** öffnen
-2. Oben rechts **„..."** → **„Connections"**
-3. Integration `TikTok Rezepte` hinzufügen
+### 2c. Connect database to integration
 
-### 2d. Datenbank-ID kopieren
+1. Open the database as **Full Page**
+2. Top right **"..."** → **"Connections"**
+3. Add your integration `TikTok Recipes`
 
-Die URL der Datenbank sieht so aus:
+### 2d. Copy database ID
+
+The database URL looks like this:
 ```
 https://www.notion.so/abc123def456ghi789...?v=xyz
 ```
-Der Teil **vor** dem `?v=` ist die Datenbank-ID.
+The part **before** `?v=` is your database ID.
 
 ---
 
 ## 3. Anthropic API Setup
 
-1. Account erstellen auf [console.anthropic.com](https://console.anthropic.com)
-2. **„API Keys"** → **„Create Key"**
-3. Key kopieren (`sk-ant-...`)
-4. Guthaben aufladen (min. $5 – reicht für tausende Rezepte)
+1. Create an account at [console.anthropic.com](https://console.anthropic.com)
+2. **"API Keys"** → **"Create Key"**
+3. Copy the key (`sk-ant-...`)
+4. Add credits (min. $5 – enough for thousands of recipes)
 
-> **Hinweis:** Nur Kreditkarte oder Debitkarte werden akzeptiert, kein PayPal.
+> **Note:** Only credit cards or debit cards are accepted, no PayPal.
 
 ---
 
-## 4. GitHub Repository erstellen
+## 4. Create GitHub repository
 
-1. Auf [github.com](https://github.com) → **„New"**
+1. Go to [github.com](https://github.com) → **"New"**
 2. Name: `TikTok-recipes`
-3. **Private** auswählen
-4. ✅ **„Add a README file"** anhaken
-5. **„Create repository"**
+3. Select **Public** or **Private** – both are safe since API keys are stored in Vercel
+4. ✅ Check **"Add a README file"**
+5. **"Create repository"**
 
 ---
 
 ## 5. Code
 
-### Dateistruktur
+### File structure
 
 ```
 TikTok-recipes/
 ├── api/
-│   ├── save-recipe.js   → Hauptlogik
-│   └── prompt.js        → Claude Prompt
+│   ├── save-recipe.js   → main logic
+│   └── prompt.js        → Claude prompt
 ├── package.json
 └── vercel.json
 ```
 
 ### package.json
 
-Definiert die benötigten Abhängigkeiten – siehe [`package.json`](./package.json).
+Defines the required dependencies – see [`package.json`](./package.json).
 
 ### vercel.json
 
-Konfiguriert die Vercel Serverless Function mit Speicher und maximaler Laufzeit – siehe [`vercel.json`](./vercel.json).
+Configures the Vercel Serverless Function with memory and maximum runtime – see [`vercel.json`](./vercel.json).
 
 ### api/prompt.js
 
-Enthält den Claude Prompt als separate Datei – so kann der Prompt angepasst werden ohne die Hauptlogik zu ändern – siehe [`api/prompt.js`](./api/prompt.js).
+Contains the Claude prompt as a separate file – so the prompt can be adjusted without touching the main logic – see [`api/prompt.js`](./api/prompt.js).
+
+> **Note:** If you rename this file, make sure to update the import path at the top of `api/save-recipe.js` accordingly:
+> ```javascript
+> import { buildPrompt } from "./prompt.js"; // ← update filename here if changed
+> ```
 
 ### api/save-recipe.js
 
-Hauptlogik der Anwendung – empfängt die TikTok URL, löst sie auf, holt die Caption, extrahiert das Rezept via Claude und speichert es in Notion – siehe [`api/save-recipe.js`](./api/save-recipe.js).
+Main application logic – receives the TikTok URL, resolves it, fetches the caption, extracts the recipe via Claude and saves it to Notion – see [`api/save-recipe.js`](./api/save-recipe.js).
 
-## 6. Vercel Setup
-
-### 6a. Account erstellen
-
-1. Gehe auf [vercel.com](https://vercel.com)
-2. **„Sign Up"** → **„Continue with GitHub"**
-
-### 6b. Projekt deployen
-
-1. **„Add New Project"** → **„Import Git Repository"**
-2. Repo `TikTok-recipes` auswählen → **„Import"**
-3. Alles auf Standard lassen → **„Deploy"**
-
-### 6c. Environment Variables eintragen
-
-1. Vercel Projekt → **„Settings"** → **„Environment Variables"**
-2. Folgende drei Variablen eintragen (alle Environments auswählen):
-
-| Name | Wert |
-|---|---|
-| `ANTHROPIC_API_KEY` | `sk-ant-...` |
-| `NOTION_TOKEN` | `secret_...` |
-| `NOTION_DATABASE_ID` | Datenbank-ID |
-
-3. Danach **„Deployments"** → **„Redeploy"**
-
-> **Wichtig:** API Keys niemals direkt im Code eintragen – immer über Environment Variables!
+> **Note on Notion headings and column names:** The Notion page headings (`Zutaten`, `Zubereitung`) and database column names (`Kategorie`, `Zutaten`, `TikTok URL`) are hardcoded in `api/save-recipe.js`. If you rename any columns in Notion, make sure to update the corresponding property names in the code as well — otherwise saving will fail.
 
 ---
 
-## 7. iOS Shortcut einrichten
+## 6. Vercel Setup
 
-### Shortcut erstellen
+### 6a. Create account
 
-1. **Shortcuts App** öffnen → **„+"**
-2. Folgende 3 Actions in dieser Reihenfolge hinzufügen:
+1. Go to [vercel.com](https://vercel.com)
+2. **"Sign Up"** → **"Continue with GitHub"**
 
-**Action 1:** `URLs von Share-Sheet erhalten`
-- Wenn es keine Eingabe gibt: Fortfahren
+### 6b. Deploy project
 
-**Action 2:** `Inhalte von URL abrufen`
-- URL: `https://DEINE-VERCEL-URL.vercel.app/api/save-recipe`
-  > Deine URL findest du in Vercel → dein Projekt → „Domains", z.B. `https://tik-tok-recipes.vercel.app`
-- Methode: **POST**
-- Haupttext anfordern: **JSON**
-- Schlüssel: `url` / Wert: **Kurzbefehl-Eingabe** (blaue Variable)
+1. **"Add New Project"** → **"Import Git Repository"**
+2. Select repo `TikTok-recipes` → **"Import"**
+3. Leave everything as default → **"Deploy"**
 
-**Action 3:** `Wert für "message" in Inhalt der URL abrufen`
-- Wörterbuch: **Inhalt der URL**
-- Schlüssel: `message`
+### 6c. Add environment variables
 
-**Action 4:** `Mitteilung anzeigen`
-- Nachricht: **Wörterbuchwert** (Variable aus Action 3)
+1. Vercel project → **"Settings"** → **"Environment Variables"**
+2. Add the following three variables (select all environments):
 
-### Im Teilen-Menü aktivieren
+| Name | Value |
+|---|---|
+| `ANTHROPIC_API_KEY` | `sk-ant-...` |
+| `NOTION_TOKEN` | `secret_...` |
+| `NOTION_DATABASE_ID` | your database ID |
 
-1. Shortcut Namen tippen → **„Details"**
-2. **„Im Share Sheet anzeigen"** aktivieren
+3. Then go to **"Deployments"** → **"Redeploy"**
 
-### Verwendung
+> **Important:** Never put API keys directly in the code – always use environment variables!
 
-1. TikTok öffnen
-2. Rezept-Video → **Teilen**
-3. **„Rezept speichern"** antippen
-4. Kurz warten (~5 Sekunden)
-5. Notification erscheint mit Bestätigung
+---
+
+## 7. iOS Shortcut Setup
+
+### Create shortcut
+
+1. Open **Shortcuts app** → **"+"**
+2. Add the following 4 actions in this order:
+
+**Action 1:** `Get URLs from Share Sheet`
+- If there is no input: Continue
+
+**Action 2:** `Get Contents of URL`
+- URL: `https://YOUR-VERCEL-URL.vercel.app/api/save-recipe`
+  > Find your URL in Vercel → your project → "Domains", e.g. `https://tik-tok-recipes.vercel.app`
+- Method: **POST**
+- Request body: **JSON**
+- Key: `url` / Value: **Shortcut Input** (blue variable)
+
+**Action 3:** `Get value for "message" from Contents of URL`
+- Dictionary: **Contents of URL**
+- Key: `message`
+
+**Action 4:** `Show Notification`
+- Message: **Dictionary Value** (variable from Action 3)
+
+### Enable in Share Sheet
+
+1. Tap shortcut name → **"Details"**
+2. Enable **"Show in Share Sheet"**
+
+### Usage
+
+1. Open TikTok
+2. Find a recipe video → tap **Share**
+3. Select **"Save Recipe"**
+4. Wait briefly (~5 seconds)
+5. Notification appears with confirmation
 
 ---
 
 ## 8. Troubleshooting
 
-| Fehler | Ursache | Lösung |
+| Error | Cause | Solution |
 |---|---|---|
-| `TikTok URL fehlt` | Shortcut übergibt URL nicht korrekt | Wert bei Schlüssel `url` auf **Kurzbefehl-Eingabe** setzen |
-| `Caption enthält keine Rezeptinformationen` | Video hat keine oder nur Hashtag-Caption | Anderes Video versuchen |
-| `Kein Rezept in der Caption gefunden` | Claude hat kein Rezept erkannt | Caption enthält kein strukturiertes Rezept |
-| `Bereits gespeichert: [Name]` | Duplicate Check hat angeschlagen | Rezept ist bereits in Notion vorhanden |
-| `404 NOT FOUND` | Vercel findet die Funktion nicht | Dateistruktur prüfen: `api/save-recipe.js` |
-| Deployment schlägt fehl | Environment Variables fehlen | In Vercel Settings → Environment Variables prüfen |
+| `TikTok URL missing` | Shortcut not passing URL correctly | Set value for key `url` to **Shortcut Input** |
+| `Caption contains no recipe information` | Video has no or only hashtag caption | Try a different video |
+| `No recipe found in caption` | Claude could not detect a recipe | Caption does not contain a structured recipe |
+| `Already saved: [Name]` | Duplicate check triggered | Recipe already exists in Notion |
+| `404 NOT FOUND` | Vercel cannot find the function | Check file structure: `api/save-recipe.js` |
+| Deployment fails | Environment variables missing | Check Vercel Settings → Environment Variables |
 
 ---
 
-## 9. Kosten
+## 9. Costs
 
-| Service | Kosten |
+| Service | Cost |
 |---|---|
-| Vercel | Kostenlos (Hobby Plan) |
-| GitHub | Kostenlos |
-| Notion | Kostenlos |
-| Anthropic API | ~$0.001 pro Rezept (Haiku Modell) |
+| Vercel | Free (Hobby Plan) |
+| GitHub | Free |
+| Notion | Free |
+| Anthropic API | ~$0.001 per recipe (Haiku model) |
 
-Mit $5 Startguthaben bei Anthropic können ca. 5.000 Rezepte gespeichert werden.
+With $5 starting credits at Anthropic you can save approximately 5,000 recipes.
 
 ---
 
-## 10. Mögliche Erweiterungen
+## 10. Possible Extensions
 
-- **Mehr Kategorien** – Prompt in `api/prompt.js` anpassen
-- **Andere Sprachen** – Prompt erweitern
-- **Mehrere Nutzer** – Supabase für User-Management hinzufügen
-- **Notion OAuth** – „Connect with Notion" Button für andere Nutzer
-- **Modell wechseln** – von Haiku zu Sonnet für bessere Extraktion
+- **More categories** – adjust prompt in `api/prompt.js` and Notion Select column
+- **Other languages** – extend the prompt
+- **Multiple users** – add Supabase for user management
+- **Notion OAuth** – "Connect with Notion" button for other users
+- **Switch model** – from Haiku to Sonnet for better extraction

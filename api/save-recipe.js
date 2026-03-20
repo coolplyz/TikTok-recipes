@@ -12,33 +12,33 @@ export default async function handler(req, res) {
 
   const { url } = req.body;
   if (!url) {
-    return res.status(400).json({ message: "❌ TikTok URL fehlt" });
+    return res.status(400).json({ message: "❌ TikTok URL missing" });
   }
 
   try {
-    // 1. URL auflösen falls verkürzt
+    // 1. Resolve URL if shortened
     let resolvedUrl = url;
     if (url.includes("vm.tiktok.com") || url.includes("vt.tiktok.com")) {
       const response = await fetch(url, { redirect: "follow" });
       resolvedUrl = response.url;
     }
 
-    // 2. TikTok Caption holen
+    // 2. Fetch TikTok caption
     const oembedRes = await fetch(
       `https://www.tiktok.com/oembed?url=${encodeURIComponent(resolvedUrl)}`
     );
     const oembed = await oembedRes.json();
     const caption = oembed.title || "";
 
-    // 3. Caption validieren
+    // 3. Validate caption
     const cleanCaption = caption.replace(/#\w+/g, "").trim();
     if (!cleanCaption) {
       return res.status(400).json({
-        message: "❌ Keine Rezeptinformationen in der Caption gefunden",
+        message: "❌ Caption contains no recipe information",
       });
     }
 
-    // 4. Duplicate Check
+    // 4. Duplicate check
     const existing = await notion.databases.query({
       database_id: process.env.NOTION_DATABASE_ID,
       filter: {
@@ -50,12 +50,12 @@ export default async function handler(req, res) {
     if (existing.results.length > 0) {
       const name = existing.results[0].properties.Name.title[0]?.plain_text;
       return res.status(409).json({
-        message: `⚠️ Bereits gespeichert: ${name}`,
+        message: `⚠️ Already saved: ${name}`,
       });
     }
 
-    // 5. Claude extrahiert Rezepte
-    const message = await anthropic.messages.create({
+    // 5. Extract recipes with Claude
+    const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 2048,
       messages: [
@@ -66,31 +66,31 @@ export default async function handler(req, res) {
       ],
     });
 
-    // 6. Antwort parsen
-    const raw = message.content[0].text.replace(/```json|```/g, "").trim();
-    const rezepte = JSON.parse(raw);
+    // 6. Parse response
+    const raw = response.content[0].text.replace(/```json|```/g, "").trim();
+    const recipes = JSON.parse(raw);
 
-    if (!Array.isArray(rezepte) || rezepte.length === 0) {
+    if (!Array.isArray(recipes) || recipes.length === 0) {
       return res.status(400).json({
-        message: "❌ Kein Rezept in der Caption gefunden",
+        message: "❌ No recipe found in caption",
       });
     }
 
-    // 7. Für jedes Rezept eine Notion-Seite erstellen
-    const gespeichert = [];
+    // 7. Create a Notion page for each recipe
+    const saved = [];
 
-    for (const rezept of rezepte) {
+    for (const recipe of recipes) {
       await notion.pages.create({
         parent: { database_id: process.env.NOTION_DATABASE_ID },
         properties: {
           Name: {
-            title: [{ text: { content: rezept.name } }],
+            title: [{ text: { content: recipe.name } }],
           },
           Kategorie: {
-            select: { name: rezept.kategorie },
+            select: { name: recipe.category },
           },
           Zutaten: {
-            multi_select: rezept.zutaten_tags.map((tag) => ({ name: tag })),
+            multi_select: recipe.ingredient_tags.map((tag) => ({ name: tag })),
           },
           "TikTok URL": {
             url: resolvedUrl,
@@ -104,11 +104,11 @@ export default async function handler(req, res) {
               rich_text: [{ text: { content: "Zutaten" } }],
             },
           },
-          ...rezept.zutaten_detail.map((zutat) => ({
+          ...recipe.ingredient_detail.map((ingredient) => ({
             object: "block",
             type: "bulleted_list_item",
             bulleted_list_item: {
-              rich_text: [{ text: { content: zutat } }],
+              rich_text: [{ text: { content: ingredient } }],
             },
           })),
           {
@@ -118,28 +118,28 @@ export default async function handler(req, res) {
               rich_text: [{ text: { content: "Zubereitung" } }],
             },
           },
-          ...rezept.zubereitung.map((schritt) => ({
+          ...recipe.preparation.map((step) => ({
             object: "block",
             type: "numbered_list_item",
             numbered_list_item: {
-              rich_text: [{ text: { content: schritt } }],
+              rich_text: [{ text: { content: step } }],
             },
           })),
         ],
       });
 
-      gespeichert.push(rezept.name);
+      saved.push(recipe.name);
     }
 
-    // 8. Schöne Erfolgsnachricht
-    const nachricht = gespeichert.length === 1
-      ? `✅ "${gespeichert[0]}" wurde gespeichert!`
-      : `✅ ${gespeichert.length} Rezepte gespeichert:\n${gespeichert.map(n => `• ${n}`).join("\n")}`;
+    // 8. Success message
+    const successMessage = saved.length === 1
+      ? `✅ "${saved[0]}" has been saved!`
+      : `✅ ${saved.length} recipes saved:\n${saved.map((n) => `• ${n}`).join("\n")}`;
 
-    return res.status(200).json({ message: nachricht });
+    return res.status(200).json({ message: successMessage });
 
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: "❌ Fehler: " + error.message });
+    return res.status(500).json({ message: "❌ Error: " + error.message });
   }
 }
