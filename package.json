@@ -1,0 +1,8 @@
+{
+  "name": "tiktok-rezepte",
+  "version": "1.0.0",
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "@anthropic-ai/sdk": "^0.27.0"
+  }
+} 
