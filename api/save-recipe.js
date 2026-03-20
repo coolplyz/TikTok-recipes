@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Client } from "@notionhq/client";
-import { buildPrompt } from "./prompt.js";
+import { buildPrompt } from "./prompt_ger.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
