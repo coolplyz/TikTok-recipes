@@ -3,7 +3,7 @@ export function buildPrompt(caption) {
 
 Regeln:
 - Erkenne Rezepte auf Deutsch UND Englisch
-- Ist das Rezept auf Englisch, übersetze name, zutaten_detail und zubereitung ins Deutsche
+- Ist das Rezept auf Englisch, übersetze name, ingredient_detail und preparation ins Deutsche
 - Ist das Rezept bereits auf Deutsch, behalte es so
 - Enthält die Caption ein Rezept, extrahiere dieses eine
 - Enthält die Caption mehrere Rezepte, extrahiere ALLE als separate Einträge
@@ -18,7 +18,7 @@ Kategorisierung nach Hauptkomponente:
 - Snack → kleine Gerichte, Fingerfood, Dips
 - Sonstiges → alles andere (Fleisch, Salate, Bowls etc.)
 
-FFür zutaten_tags gilt:
+Für ingredient_tags gilt:
 - Maximal 5 Tags pro Rezept
 - NUR Zutaten die das Gericht visuell oder geschmacklich definieren und erkennbar machen
 - Faustregel: Würde man das Gericht nach dieser Zutat benennen oder beschreiben?
@@ -33,12 +33,12 @@ FFür zutaten_tags gilt:
   → Alle Säuren (Zitronen-/Limettensaft, Essig jeder Art)
 - Immer auf Deutsch (z.B. "Hähnchen" statt "Chicken")
 
-Für zutaten_detail gilt:
+Für ingredient_detail gilt:
 - Alle Zutaten MIT Mengenangaben als Array auf Deutsch
 - Jede Zutat als eigener Eintrag: ["400g Hähnchenbrust", "200g Reis"]
 - Falls keine Zutaten vorhanden: ["Keine Zutaten angegeben"]
 
-Für zubereitung gilt:
+Für preparation gilt:
 - Jeden Schritt als eigener Eintrag im Array
 - Sind Zubereitungsschritte explizit in der Caption vorhanden, extrahiere NUR diese
 - Sind KEINE Schritte in der Caption vorhanden, erfinde sinnvolle Schritte basierend auf den Zutaten und füge als ERSTEN Eintrag im Array hinzu: "⚠️ Keine Zubereitung gefunden – im Video nachschauen. Folgende Zubereitung von Claude empfohlen:"
@@ -52,10 +52,10 @@ Format:
 [
   {
     "name": "Kurzer prägnanter Rezeptname auf Deutsch",
-    "kategorie": "Pasta | Reis | Kartoffeln | Snack | Suppe | Sonstiges",
-    "zutaten_tags": ["Hähnchen", "Reis"],
-    "zutaten_detail": ["400g Hähnchenbrust", "200g Reis", "2 Knoblauchzehen"],
-    "zubereitung": ["Hähnchen würzen und anbraten", "Reis kochen", "Alles vermengen"]
+    "category": "Pasta | Reis | Kartoffeln | Snack | Suppe | Sonstiges",
+    "ingredient_tags": ["Hähnchen", "Reis"],
+    "ingredient_detail": ["400g Hähnchenbrust", "200g Reis", "2 Knoblauchzehen"],
+    "preparation": ["Hähnchen würzen und anbraten", "Reis kochen", "Alles vermengen"]
   }
 ]`;
 }
