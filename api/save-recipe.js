@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Client } from "@notionhq/client";
+import { buildPrompt } from "./prompt.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
@@ -22,53 +23,56 @@ export default async function handler(req, res) {
         const oembed = await oembedRes.json();
         const caption = oembed.title || "";
 
-        if (!caption) {
-            return res.status(400).json({ error: "Keine Caption gefunden" });
+        // 2. Caption validieren – Ebene 1
+        const cleanCaption = caption.replace(/#\w+/g, "").trim();
+        if (!cleanCaption) {
+            return res.status(400).json({
+                error: "Caption enthält keine Rezeptinformationen",
+            });
+        }
+        // 3. Duplicate Check – URL bereits in Notion?
+        const existing = await notion.databases.query({
+            database_id: process.env.NOTION_DATABASE_ID,
+            filter: {
+                property: "TikTok URL",
+                url: {
+                    equals: url,
+                },
+            },
+        });
+
+        if (existing.results.length > 0) {
+            const name = existing.results[0].properties.Name.title[0]?.plain_text;
+            return res.status(409).json({
+                error: "Rezept bereits vorhanden",
+                rezept: name,
+            });
         }
 
-        // 2. Claude extrahiert Rezepte
+        // 3. Claude extrahiert Rezepte
         const message = await anthropic.messages.create({
             model: "claude-haiku-4-5-20251001",
             max_tokens: 2048,
             messages: [
                 {
                     role: "user",
-                    content: `Du bist ein Rezept-Extraktor. Analysiere die folgende TikTok Caption.
-
-Regeln:
-- Erkennt Rezepte auf Deutsch UND Englisch
-- Enthält die Caption ein Rezept, extrahiere dieses eine
-- Enthält die Caption mehrere Rezepte, extrahiere ALLE als separate Einträge
-- Ist kein Rezeptname erkennbar, erstelle einen passenden kurzen Namen
-- Fehlen Zutaten, schreibe "Keine Zutaten angegeben"
-- Fehlen Zubereitungsschritte, schreibe "Keine Schritte angegeben"
-- Kategorisiere in NUR eine dieser Kategorien: Pasta, Reis, Kartoffeln, Snack, Suppe, Sonstiges
-- Antworte NUR als reines JSON Array, keine Backticks, kein Markdown, keine Erklärungen
-
-Caption: "${caption}"
-
-Antworte mit einem JSON Array, auch wenn es nur ein Rezept ist:
-[
-  {
-    "name": "Kurzer prägnanter Rezeptname",
-    "kategorie": "Pasta | Reis | Kartoffeln | Snack | Suppe | Sonstiges",
-    "zutaten": "Zutat 1, Zutat 2, Zutat 3...",
-    "zubereitung": "Schritt 1. Schritt 2. Schritt 3."
-  }
-]`,
+                    content: buildPrompt(caption),
                 },
             ],
         });
 
-        // 3. Antwort parsen
+        // 4. Antwort parsen
         const raw = message.content[0].text.replace(/```json|```/g, "").trim();
         const rezepte = JSON.parse(raw);
 
+        // 5. Leeres Array abfangen – Ebene 2
         if (!Array.isArray(rezepte) || rezepte.length === 0) {
-            return res.status(400).json({ error: "Keine Rezepte gefunden" });
+            return res.status(400).json({
+                error: "Kein Rezept in der Caption gefunden",
+            });
         }
 
-        // 4. Für jedes Rezept eine Notion-Seite erstellen
+        // 6. Für jedes Rezept eine Notion-Seite erstellen
         const gespeichert = [];
 
         for (const rezept of rezepte) {
@@ -82,7 +86,7 @@ Antworte mit einem JSON Array, auch wenn es nur ein Rezept ist:
                         select: { name: rezept.kategorie },
                     },
                     Zutaten: {
-                        rich_text: [{ text: { content: rezept.zutaten } }],
+                        multi_select: rezept.zutaten_tags.map((tag) => ({ name: tag })),
                     },
                     "TikTok URL": {
                         url: url,
@@ -93,23 +97,37 @@ Antworte mit einem JSON Array, auch wenn es nur ein Rezept ist:
                         object: "block",
                         type: "heading_2",
                         heading_2: {
+                            rich_text: [{ text: { content: "Zutaten" } }],
+                        },
+                    },
+                    ...rezept.zutaten_detail.map((zutat) => ({
+                        object: "block",
+                        type: "bulleted_list_item",
+                        bulleted_list_item: {
+                            rich_text: [{ text: { content: zutat } }],
+                        },
+                    })),
+                    {
+                        object: "block",
+                        type: "heading_2",
+                        heading_2: {
                             rich_text: [{ text: { content: "Zubereitung" } }],
                         },
                     },
-                    {
+                    ...rezept.zubereitung.map((schritt) => ({
                         object: "block",
-                        type: "paragraph",
-                        paragraph: {
-                            rich_text: [{ text: { content: rezept.zubereitung } }],
+                        type: "numbered_list_item",
+                        numbered_list_item: {
+                            rich_text: [{ text: { content: schritt } }],
                         },
-                    },
+                    })),
                 ],
             });
 
             gespeichert.push(rezept.name);
         }
 
-        // 5. Bestätigung zurückschicken
+        // 7. Bestätigung zurückschicken
         return res.status(200).json({
             success: true,
             anzahl: gespeichert.length,
