@@ -37,7 +37,9 @@ Für zutaten_detail gilt:
 
 Für zubereitung gilt:
 - Jeden Schritt als eigener Eintrag im Array
-- Falls keine Schritte vorhanden: ["Keine Schritte angegeben"]
+- Sind Zubereitungsschritte explizit in der Caption vorhanden, extrahiere NUR diese
+- Sind KEINE Schritte in der Caption vorhanden, erfinde sinnvolle Schritte basierend auf den Zutaten und füge als ERSTEN Eintrag im Array hinzu: "⚠️ Keine Zubereitung gefunden – im Video nachschauen. Folgende Zubereitung von Claude empfohlen:"
+- Sind Schritte vorhanden, kein Disclaimer nötig
 
 Antworte NUR als reines JSON Array, keine Backticks, kein Markdown, keine Erklärungen.
 
