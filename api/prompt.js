@@ -36,7 +36,14 @@ For ingredient_tags:
 For ingredient_detail:
 - All ingredients WITH quantities as an array in English
 - Each ingredient as a separate entry: ["400g chicken breast", "200g rice"]
+- If the caption contains ingredient groups (e.g. "For the sauce", "For the dough", "For the marinade"),
+  add the group heading as a separate entry in capital letters: "— FOR THE SAUCE —"
 - If no ingredients available: ["No ingredients found"]
+
+For servings:
+- Detect mentions like "for X people" or "X servings" or "X portions"
+- Keep the exact wording as it appears in the caption
+- If no mention found: null
 
 For preparation:
 - Each step as a separate entry in the array
@@ -54,7 +61,8 @@ Format:
     "name": "Short concise recipe name in English",
     "category": "Pasta | Rice | Potatoes | Snack | Soup | Other",
     "ingredient_tags": ["Chicken", "Rice"],
-    "ingredient_detail": ["400g chicken breast", "200g rice", "2 cloves garlic"],
+    "ingredient_detail": ["400g chicken breast", "— FOR THE RICE —", "200g basmati rice", "2 cloves garlic"],
+    "servings": "4 servings",
     "preparation": ["Season and fry chicken", "Cook rice", "Mix everything together"]
   }
 ]`;

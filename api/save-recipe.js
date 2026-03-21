@@ -118,6 +118,16 @@ export default async function handler(req, res) {
               rich_text: [{ text: { content: "Zubereitung" } }],
             },
           },
+          ...(recipe.servings ? [{
+            object: "block",
+            type: "paragraph",
+            paragraph: {
+              rich_text: [{
+                text: { content: `🍽️ ${recipe.servings}` },
+                annotations: { italic: true, color: "gray" }
+              }]
+            }
+          }] : []),
           ...recipe.preparation.map((step) => ({
             object: "block",
             type: "numbered_list_item",

@@ -36,7 +36,14 @@ Für ingredient_tags gilt:
 Für ingredient_detail gilt:
 - Alle Zutaten MIT Mengenangaben als Array auf Deutsch
 - Jede Zutat als eigener Eintrag: ["400g Hähnchenbrust", "200g Reis"]
+- Enthält die Caption Zutatengruppen (z.B. "Für die Soße", "Für den Teig", "Für die Marinade"),
+  füge die Gruppenüberschrift als eigenen Eintrag in Großbuchstaben ein: "— FÜR DIE SOSSE —"
 - Falls keine Zutaten vorhanden: ["Keine Zutaten angegeben"]
+
+Für servings gilt:
+- Erkenne Angaben wie "für X Personen" oder "X Portionen"
+- Übernehme die Angabe exakt so wie sie in der Caption steht
+- Falls keine Angabe vorhanden: null
 
 Für preparation gilt:
 - Jeden Schritt als eigener Eintrag im Array
@@ -54,7 +61,8 @@ Format:
     "name": "Kurzer prägnanter Rezeptname auf Deutsch",
     "category": "Pasta | Reis | Kartoffeln | Snack | Suppe | Sonstiges",
     "ingredient_tags": ["Hähnchen", "Reis"],
-    "ingredient_detail": ["400g Hähnchenbrust", "200g Reis", "2 Knoblauchzehen"],
+    "ingredient_detail": ["400g Hähnchenbrust", "— FÜR DEN REIS —", "200g Basmati-Reis", "2 Knoblauchzehen"],
+    "servings": "4 Portionen",
     "preparation": ["Hähnchen würzen und anbraten", "Reis kochen", "Alles vermengen"]
   }
 ]`;
