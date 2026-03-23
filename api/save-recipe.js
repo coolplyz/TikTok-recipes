@@ -23,6 +23,10 @@ export default async function handler(req, res) {
       resolvedUrl = response.url;
     }
 
+    // 2. URL bereinigen – Parameter entfernen
+    const urlObj = new URL(resolvedUrl);
+    resolvedUrl = `${urlObj.origin}${urlObj.pathname}`;
+
     // 2. Fetch TikTok caption
     const oembedRes = await fetch(
       `https://www.tiktok.com/oembed?url=${encodeURIComponent(resolvedUrl)}`
